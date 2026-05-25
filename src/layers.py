@@ -83,6 +83,8 @@ class BatchNorm:
         self.running_mean = np.zeros_like(beta)
         self.running_var = np.zeros_like(beta)
         self.eps = 1e-7
+        self.dgamma = None
+        self.dbeta = None
 
     def forward(self, x, train=True):
         """
@@ -95,6 +97,22 @@ class BatchNorm:
         """
         # TODO: train=True에서는 batch mean/var로 정규화하고 running 통계를 갱신하세요.
         # TODO: train=False에서는 running_mean/running_var를 사용하세요.
+        
+        if train:
+            mean = np.mean(x, axis=0)
+            var = np.var(x, axis=0)
+
+            self.x_centered = x - mean
+            self.std = np.sqrt(var + self.eps)
+            self.x_norm = self.x_centered / self.std
+
+            self.running_mean = self.momentum * self.running_mean + (1 - self.momentum) * mean
+            self.running_var = self.momentum * self.running_var + (1 - self.momentum) * var
+
+            return self.gamma * self.x_norm + self.beta
+
+        x_norm = (x - self.running_mean) / np.sqrt(self.running_var + self.eps)
+        return self.gamma * x_norm + self.beta
         raise NotImplementedError("BatchNorm.forward를 구현하세요.")
 
     def backward(self, dout):
@@ -109,7 +127,17 @@ class BatchNorm:
         """
         # TODO: self.dbeta, self.dgamma, dx를 계산하세요.
         # 힌트: 먼저 dbeta와 dgamma shape가 beta/gamma와 같은지 확인합니다.
-        raise NotImplementedError("BatchNorm.backward를 구현하세요.")
+        batch_size = dout.shape[0]
+
+        self.dbeta = np.sum(dout, axis=0)
+        self.dgamma = np.sum(dout * self.x_norm, axis=0)
+
+        dx_norm = dout * self.gamma
+        dvar = np.sum(dx_norm * self.x_centered * -0.5 * (self.std ** -3), axis=0)
+        dmean = np.sum(-dx_norm / self.std, axis=0) + dvar * np.mean(-2.0 * self.x_centered, axis=0)
+        dx = dx_norm / self.std + dvar * 2.0 * self.x_centered / batch_size + dmean / batch_size
+
+        return dx
 
 
 class Dropout:
