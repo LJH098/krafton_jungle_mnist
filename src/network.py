@@ -5,6 +5,9 @@ MNIST 분류용 신경망 조립 모듈.
 개별 layer를 OrderedDict에 쌓아 forward/backward 순서를 명확히 유지합니다.
 """
 
+from typing import Any
+
+
 from collections import OrderedDict
 
 import numpy as np
@@ -12,6 +15,7 @@ import numpy as np
 from activations import ReLU, Softmax
 from layers import Affine, BatchNorm, Dropout
 from losses import cross_entropy_loss
+
 
 
 class NeuralNetwork:
@@ -22,7 +26,7 @@ class NeuralNetwork:
     가중치 초기화: He 또는 Xavier 중 선택.
     """
 
-    def __init__(self, use_batchnorm=True, use_dropout=True, dropout_ratio=0.5):
+    def __init__(self, use_batchnorm=True, use_dropout=True, dropout_ratio=0.5, weight_init_std = 0.01):
         """
         Args:
             use_batchnorm: 은닉층마다 BatchNorm을 넣을지 여부
@@ -32,7 +36,48 @@ class NeuralNetwork:
         # TODO: params dict를 만들고 Affine/BatchNorm/ReLU/Dropout layer를 순서대로 구성하세요.
         # 권장 구조: 784 -> 512 -> 256 -> 10
         # self.layers는 OrderedDict로 만들고, self.grads는 params와 같은 key를 갖게 합니다.
-        raise NotImplementedError("NeuralNetwork.__init__을 구현하세요.")
+
+        # hidden size가 2개인게 맞아? 
+        # train에서 줌? 
+        input_size = 784
+        hidden_size1 = 512
+        hidden_size2 = 256
+        output_size = 10
+
+        self.params = {}
+
+        self.params["W1"] = weight_init_std * np.random.randn(784, 512)
+        self.params["b1"] = np.zeros(512)
+
+        self.params["W2"] = weight_init_std * np.random.randn(512, 256)
+        self.params["b2"] = np.zeros(256)
+
+        self.params["W3"] = weight_init_std * np.random.randn(256, 10)
+        self.params["b3"] = np.zeros(10)
+
+        self.params["gamma1"] = np.ones(512)
+        self.params["beta1"] = np.zeros(512)
+
+        self.params["gamma2"] = np.ones(256)
+        self.params["beta2"] = np.zeros(256)
+
+
+
+        self.layers = OrderedDict()
+
+        self.layers["Affine1"] = Affine(self.params["W1"], self.params["b1"])
+        self.layers["BatchNorm1"] = BatchNorm(self.params["gamma1"], self.params["beta1"])
+        self.layers["Relu1"] = ReLU()
+        self.layers["Dropout1"] = Dropout(dropout_ratio)
+
+        self.layers["Affine2"] = Affine(self.params["W2"], self.params["b2"])
+        self.layers["BatchNorm2"] = BatchNorm(self.params["gamma2"], self.params["beta2"])
+        self.layers["Relu2"] = ReLU()
+        self.layers["Dropout2"] = Dropout(dropout_ratio)
+
+        self.layers["Affine3"] = Affine(self.params["W3"], self.params["b3"])
+
+        self.lastLayer = Softmax()
 
     def forward(self, x, train=True):
         """
@@ -44,7 +89,14 @@ class NeuralNetwork:
             (batch_size, 10) 각 숫자 클래스의 확률
         """
         # TODO: self.layers를 순서대로 통과시키고 마지막에 Softmax를 적용하세요.
-        raise NotImplementedError("NeuralNetwork.forward를 구현하세요.")
+        for layer in self.layers.values():
+            if isinstance(layer, (BatchNorm, Dropout)):
+                x = layer.forward(x, train)
+            else:
+                x = layer.forward(x)
+            
+        return self.lastLayer.forward(x)
+
 
     def backward(self, dout):
         """
@@ -54,7 +106,25 @@ class NeuralNetwork:
             dout: Softmax+CrossEntropy를 합친 출력층 gradient
         """
         # TODO: layer를 역순으로 통과시키고 Affine/BatchNorm의 gradient를 self.grads에 모으세요.
-        raise NotImplementedError("NeuralNetwork.backward를 구현하세요.")
+
+        layers = list(self.layers.values())
+        layers.reverse()
+        for layer in layers:
+            dout = layer.backward(dout)
+
+        grads = {}
+        grads['W1'], grads['b1'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
+        grads['W2'], grads['b2'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
+        grads['W3'], grads['b3'] = self.layers['Affine3'].dW, self.layers['Affine3'].db
+
+        grads["gamma1"] = self.layers["BatchNorm1"].dgamma
+        grads["beta1"] = self.layers["BatchNorm1"].dbeta
+        grads["gamma2"] = self.layers["BatchNorm2"].dgamma
+        grads["beta2"] = self.layers["BatchNorm2"].dbeta
+
+        self.grads = grads
+        return self.grads
+
 
     def loss(self, x, y):
         """현재 모델의 예측 확률을 만든 뒤 cross entropy loss를 반환합니다."""

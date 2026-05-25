@@ -18,24 +18,43 @@ class SGD:
     def update(self, params, grads):
         """params dict의 모든 파라미터를 제자리(in-place)에서 갱신합니다."""
         # TODO: params[key]를 gradient 반대 방향으로 업데이트하세요.
-        raise NotImplementedError("SGD.update를 구현하세요.")
-
+        for key in params.keys():
+            params[key] -= self.lr * grads[key]
 
 class Adam:
     """
     Adam Optimizer.
 
-    gradient의 이동평균(m)과 제곱 이동평균(v)을 함께 사용해 파라미터별 학습률을 조절합니다.
+    gradient의 이동평균(m)과 제곱 이동평균(v)을 함께 사용해 파라미터별 학습률을 조절합니다. 
     MNIST 과제에서는 SGD보다 빠르게 손실이 내려가는지 비교해 볼 수 있습니다.
     """
 
-    def __init__(self, lr=0.001):
+    def __init__(self, lr=0.001, beta1=0.9, beta2=0.999):
         """Args: lr: Adam 업데이트의 기본 학습률."""
         self.lr = lr
-        self.m, self.v = {}, {}
-        self.t = 0
+        self.m, self.v = {}, {} # m은 모멘텀 
+        self.iter = 0 # t는 대체 무엇이야. iteration 임
+
+        self.beta1 = beta1
+        self.beta2 = beta2
 
     def update(self, params, grads):
         """Adam 공식에 따라 params dict의 모든 파라미터를 갱신합니다."""
         # TODO: m, v 이동평균과 bias correction을 사용해 params를 업데이트하세요.
-        raise NotImplementedError("Adam.update를 구현하세요.")
+
+  
+        for key, val in params.items():
+            self.m[key] = np.zeros_like(val)
+            self.v[key] = np.zeros_like(val)
+        
+        self.iter += 1
+        lr_t  = self.lr * np.sqrt(1.0 - self.beta2**self.iter) / (1.0 - self.beta1**self.iter)   # 여기서 학습률 조정해서 AdaGrad랑 융합햇다고 햇나보다.......     
+        
+        for key in params.keys():
+            self.m[key] = self.beta1*self.m[key] + (1-self.beta1)*grads[key]
+            self.v[key] = self.beta2*self.v[key] + (1-self.beta2)*(grads[key]**2)
+
+            
+            params[key] -= lr_t * self.m[key] / (np.sqrt(self.v[key]) + 1e-7)
+            
+           

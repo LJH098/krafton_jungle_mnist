@@ -28,10 +28,13 @@ def load_mnist(data_dir="data"):
         url = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/mnist.npz"
         urllib.request.urlretrieve(url, local_path)
 
+
+
     with np.load(local_path) as data:
         x_train = data["x_train"].astype(np.float32).reshape(-1, 784) / 255.0
         x_test = data["x_test"].astype(np.float32).reshape(-1, 784) / 255.0
         y_train = data["y_train"]
         y_test = data["y_test"]
+
 
     return (x_train, y_train), (x_test, y_test)
