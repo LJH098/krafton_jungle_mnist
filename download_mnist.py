@@ -15,5 +15,5 @@ from data import load_mnist
 
 if __name__ == "__main__":
     print("MNIST 데이터를 data/ 폴더에 다운로드합니다...")
-    (x_train, y_train), (x_test, y_test) = load_mnist()
-    print(f"완료: train {x_train.shape}, test {x_test.shape}")
+    (x_train, y_train), (x_val, y_val), (x_test, y_test) = load_mnist()
+    print(f"완료: train {x_train.shape}, val {x_val.shape}, test {x_test.shape}")
