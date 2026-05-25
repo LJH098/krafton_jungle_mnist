@@ -37,3 +37,13 @@ class TestNeuralNetwork:
         simple_model.backward(dout)
         assert "grads" in dir(simple_model)
         assert len(simple_model.grads) == len(simple_model.params)
+
+    def test_neural_network_accepts_variable_hidden_layers(self):
+        """은닉층 개수를 바꿔도 forward/backward와 gradient 수집이 동작해야 한다."""
+        for hidden_sizes in [(256,), (512, 256, 128)]:
+            model = NeuralNetwork(hidden_sizes=hidden_sizes, use_batchnorm=True, use_dropout=True)
+            x = np.random.randn(2, 784).astype(np.float32)
+            out = model.forward(x, train=True)
+            model.backward(np.random.randn(2, 10))
+            assert out.shape == (2, 10)
+            assert len(model.grads) == len(model.params)
