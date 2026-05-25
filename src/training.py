@@ -29,21 +29,28 @@ def train(model, optimizer, x_train, y_train, epochs=20, batch_size=128):
     iter_per_epoch = max(train_size / batch_size, 1)
 
     for i in range(iter_nums):
-        batch_mask = np.random.choice(train_size, batch_size)
-        x_batch = x_train[batch_mask]
-        y_batch = y_train[batch_mask]
+        indices = np.random.permutation(train_size)
+        epoch_loss = 0
+        batch_count = 0
+        for j in range(0, train_size, batch_size):
+            batch_indices = indices[j:j+batch_size]
+            x_batch = x_train[batch_indices]
+            y_batch = y_train[batch_indices]
 
-        y_pred = network.forward(x_batch, train=True)
-        loss = cross_entropy_loss(y_pred, y_batch)
+            y_pred = network.forward(x_batch, train=True)
+            loss = cross_entropy_loss(y_pred, y_batch)
 
-        current_batch_size = x_batch.shape[0]
-        dout = y_pred.copy()
-        dout[np.arange(current_batch_size), y_batch] -= 1
-        dout /= current_batch_size
+            current_batch_size = x_batch.shape[0]
+            dout = y_pred.copy()
+            dout[np.arange(current_batch_size), y_batch] -= 1
+            dout /= current_batch_size
 
-        network.backward(dout)
-        optimizer.update(network.params, network.grads)
-        train_loss_list.append(loss)
+            network.backward(dout)
+            optimizer.update(network.params, network.grads)
+            # train_loss_list.append(loss)
+            epoch_loss += loss
+            batch_count += 1
+        train_loss_list.append(epoch_loss/batch_count)
 
     return train_loss_list
 
